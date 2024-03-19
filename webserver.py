@@ -102,7 +102,7 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         
             # Si no se encontraron libros, redirigir a get_index
             if not lista:
-                self.get_index()
+                self.index()
             else:
                 # Si se encontraron libros, procesar cada uno
                 for book in lista:
