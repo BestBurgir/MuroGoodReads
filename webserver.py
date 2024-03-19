@@ -91,21 +91,28 @@ class WebRequestHandler(BaseHTTPRequestHandler):
 
     def get_by_search(self):
         if self.query_data and 'q' in self.query_data:
+            # Buscar libros que coincidan con la consulta
             booksInter = r.sinter(self.query_data['q'].split(' '))
             lista = []
+        
+            # Decodificar los resultados y agregarlos a la lista
             for b in booksInter:
-                y=b.decode()
+                y = b.decode()
                 lista.append(y)
-                print(lista)
-            for i in range(0,len(lista)):
-                if i<len(lista):
-                    self.get_book(lista[i])
-                else:
-                    self.get_index()
+        
+            # Si no se encontraron libros, redirigir a get_index
+            if not lista:
+                self.get_index()
+            else:
+                # Si se encontraron libros, procesar cada uno
+                for book in lista:
+                    self.get_book(book)
 
+        # Configurar la respuesta HTTP para indicar éxito
         self.send_response(200)
-        self.send_header('Content-type','text/html')
+        self.send_header('Content-type', 'text/html')
         self.end_headers()
+
 
     def get_recomendation(self,session_id, book_id):
         books=r.lrange(f"session:{session_id}",0,-1)
