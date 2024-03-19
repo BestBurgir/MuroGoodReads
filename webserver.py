@@ -10,7 +10,7 @@ from urllib.parse import parse_qsl, urlparse
 
 mappings = [
     (r"^/books/(?P<book_id>\d+)$", "get_book"),
-    (r"^/search", "search"),
+    (r"^/search", "get_by_search"),
     (r"^/$", "index"),
 ]
 
@@ -89,10 +89,47 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         #""".encode("utf-8")
         #self.wfile.write(index_page)
 
+    def get_by_search(self):
+        if self.query_data and 'q' in self.query_data:
+            booksInter = r.sinter(self.query_data['q'].split(' '))
+            lista = []
+            for b in booksInter:
+                y=b.decode()
+                lista.append(y)
+                print(lista)
+            for i in range(0,len(lista)):
+                if i<len(lista):
+                    self.get_book(lista[i])
+                else:
+                    self.get_index()
+
+        self.send_response(200)
+        self.send_header('Content-type','text/html')
+        self.end_headers()
+
+    def get_recomendation(self,session_id, book_id):
+        books=r.lrange(f"session:{session_id}",0,-1)
+        print(session_id, books)
+
+        books_read = {book.decode('utf-8').split(':')[1] for book in books}
+
+        all_books = {'1','2','3','4','5'}
+
+        books_to_recommend = all_books-books_read
+        if len(books_read)>=3:
+            if books_to_recommend:
+                return f"Te recomendamos leer el libro : {books_to_recommend.pop()}"
+            else: 
+                return "Ya has leido todos los libros"
+        else:
+            return "Lee el menos tres libros para obtener recomendaciones"
+
+            
+
     def get_book(self, book_id):
         session_id = self.get_session()
         r.lpush(f"session:{session_id}", f"book:{book_id}")
-        
+        book_recomendation = self.get_recomendation(session_id, book_id)
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.write_session_cookie(session_id)
@@ -109,13 +146,18 @@ class WebRequestHandler(BaseHTTPRequestHandler):
         #book_info=book_info + f"session id:{session_id}".encode("utf-8")
         self.wfile.write(str(book_info).encode("utf-8"))
         
-
         self.wfile.write(f"session:{session_id}\n".encode("utf-8"))
         
         book_list=r.lrange(f"session:{session_id}",0,-1)
         for book in book_list:
             book_id = book.decode('utf-8')
             self.wfile.write(book_id.encode('utf-8'))
+
+        if book_recomendation:
+           self.wfile.write(f"<p>Recomendacion:{book_recomendation}</p>\n".encode('utf-8'))
+
+
+            
 
 print("Server starting.")
 server = HTTPServer(("0.0.0.0", 8000), WebRequestHandler)
